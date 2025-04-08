@@ -7,7 +7,7 @@ cookies:
   ttwid: 1%7Cxo2A_Uas39HcSPeQYZRGlCLpHonxCq5l8gMlrUPsh3I%7C1733400452%7C9f770c01cd093794153133a14108c93b5b6e6e18971372c21ecffe37f1938da0
 cover: true
 database: true
-end_time: '2025-03-26'
+end_time: '2025-04-07'
 folderstyle: true
 increase:
   allmix: false
@@ -17,7 +17,7 @@ increase:
   post: true
 json: true
 link:
-- https://www.douyin.com/user/MS4wLjABAAAAKWfNtt9eVcNNMqWDSvpxiaA7HTt4W0HqLvxIdpwWZSk
+- https://www.douyin.com/user/MS4wLjABAAAA2xbwJoXA00Bi1d4bHhZKbXjmLrGgQZNrCKCK8xlpzH4cEzalh_3oknnco7cAPuti
 mode:
 - post
 music: true
@@ -28,5 +28,5 @@ number:
   music: 5
   post: 0
 path: ./downloaded/
-start_time: '2025-03-25'
+start_time: '2025-04-05'
 thread: 5

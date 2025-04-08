@@ -253,9 +253,13 @@ class Douyin(object):
                             time.localtime(int(aweme.get("create_time", 0)))
                         )
                         
+                        # 增加日志，显示作品时间
+                        self.console.print(f"[cyan]📅 作品时间: {create_time}, 描述: {aweme.get('desc', '')[:20]}...[/]")
+                        
                         # 时间过滤
-                        if not (start_time <= create_time <= end_time):
+                        if start_time and end_time and not (start_time <= create_time <= end_time):
                             filtered_count += 1
+                            self.console.print(f"[yellow]⏭️  跳过时间范围外的作品: {create_time}[/]")
                             continue
 
                         # 数量限制检查

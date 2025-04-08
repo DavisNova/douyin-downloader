@@ -29,28 +29,45 @@ class Utils(object):
         # 先移除emoji和特殊Unicode字符
         try:
             # 使用正则表达式只保留汉字、字母、数字和基本标点
-            match = re.compile(r'([0-9A-Za-z\u4e00-\u9fa5\s.,，。_\-]+)')
+            match = re.compile(r'([0-9A-Za-z\u4e00-\u9fa5]+)')
             result = re.findall(match, filenamestr)
             result = "".join(result).strip()
             
             # 如果结果为空，说明原字符串可能只包含emoji或特殊字符
             if not result:
-                return "emoji_" + str(int(time.time()))
+                return "user_" + str(int(time.time()) % 10000)
                 
             # 限制文件名长度
-            if len(result) > 20:
-                result = result[:20]
-                
-            # 确保文件名不以点号或空格开头（避免隐藏文件）
-            result = result.lstrip('. ')
+            if len(result) > 15:
+                result = result[:15]
+            
+            # 替换Windows不允许的特殊字符（< > : " / \ | ? *）
+            result = re.sub(r'[<>:"\/\\|?*]', '', result)
+            
+            # 确保文件名不以点号或空格开头或结尾（避免隐藏文件）
+            result = result.strip('. \t\n\r')
+            
+            # 删除所有空格（确保名称紧凑）
+            result = re.sub(r'\s+', '', result)
+            
             if not result:
-                return "file_" + str(int(time.time()))
+                return "user_" + str(int(time.time()) % 10000)
+            
+            # 确保名称是纯ASCII或纯中文（避免混合字符集问题）
+            if re.search(r'[^\x00-\x7F]', result) and re.search(r'[a-zA-Z0-9]', result):
+                # 如果同时包含非ASCII字符和ASCII字符，只保留一种
+                if len(re.findall(r'[^\x00-\x7F]', result)) > len(re.findall(r'[a-zA-Z0-9]', result)):
+                    # 保留中文
+                    result = re.sub(r'[a-zA-Z0-9]', '', result)
+                else:
+                    # 保留英文和数字
+                    result = re.sub(r'[^\x00-\x7F]', '', result)
                 
             return result
         except Exception as e:
             # 处理任何可能的错误，确保总是返回一个有效的文件名
             print(f"处理文件名时出错: {str(e)}")
-            return "file_" + str(int(time.time()))
+            return "user_" + str(int(time.time()) % 10000)
 
     def resource_path(self, relative_path):
         if getattr(sys, 'frozen', False):  # 是否Bundle Resource

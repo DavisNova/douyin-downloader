@@ -48,52 +48,81 @@ class Download(object):
 
     def _download_media(self, url: str, path: Path, desc: str) -> bool:
         """通用下载方法，处理所有类型的媒体下载"""
-        if path.exists():
-            self.console.print(f"[cyan]⏭️  跳过已存在: {desc}[/]")
-            return True
+        try:
+            # 规范化路径，确保路径有效
+            path = Path(str(path).rstrip())
             
-        # 使用新的断点续传下载方法替换原有的下载逻辑
-        return self.download_with_resume(url, path, desc)
+            # 确保父目录存在
+            path.parent.mkdir(parents=True, exist_ok=True)
+            
+            if path.exists():
+                self.console.print(f"[cyan]⏭️  跳过已存在: {desc}[/]")
+                return True
+                
+            # 使用新的断点续传下载方法替换原有的下载逻辑
+            return self.download_with_resume(url, path, desc)
+        except OSError as e:
+            # 处理路径相关错误
+            logger.error(f"文件路径错误: {path}, 错误: {str(e)}")
+            
+            # 尝试使用替代路径
+            try:
+                alt_path = path.parent / f"media_{int(time.time())}{path.suffix}"
+                logger.info(f"尝试使用替代路径: {alt_path}")
+                return self.download_with_resume(url, alt_path, desc)
+            except Exception as e2:
+                logger.error(f"使用替代路径仍然失败: {str(e2)}")
+                return False
+        except Exception as e:
+            logger.error(f"下载媒体失败: {str(e)}")
+            return False
 
     def _download_media_files(self, aweme: dict, path: Path, name: str, desc: str) -> None:
         """下载所有媒体文件"""
         try:
-            # 下载视频或图集
+            # 确保路径是有效的
+            path = Path(str(path).rstrip())
+            
+            # 确保目录存在
+            path.mkdir(parents=True, exist_ok=True)
+            
+            # 视频或图集下载
             if aweme["awemeType"] == 0:  # 视频
                 video_path = path / f"{name}_video.mp4"
                 if url := aweme.get("video", {}).get("play_addr", {}).get("url_list", [None])[0]:
-                    if not self._download_media(url, video_path, f"[视频]{desc}"):
+                    if not self._download_media(url, video_path, f"{desc}视频"):
                         raise Exception("视频下载失败")
                     
             elif aweme["awemeType"] == 1:  # 图集
                 for i, image in enumerate(aweme.get("images", [])):
                     if url := image.get("url_list", [None])[0]:
-                        image_path = path / f"{name}_image_{i}.jpeg"
-                        if not self._download_media(url, image_path, f"[图集{i+1}]{desc}"):
-                            raise Exception(f"图片{i+1}下载失败")
+                        image_path = path / f"{name}_image_{i+1}.jpg"
+                        if not self._download_media(url, image_path, f"{desc}图片{i+1}"):
+                            # 继续下载其他图片，但记录失败
+                            self.console.print(f"[yellow]⚠️  图片{i+1}下载失败[/]")
 
-            # 下载音乐
+            # 下载音乐（非关键，失败不影响整体流程）
             if self.music and (url := aweme.get("music", {}).get("play_url", {}).get("url_list", [None])[0]):
-                music_name = utils.replaceStr(aweme["music"]["title"])
-                music_path = path / f"{name}_music_{music_name}.mp3"
-                if not self._download_media(url, music_path, f"[音乐]{desc}"):
-                    self.console.print(f"[yellow]⚠️  音乐下载失败: {desc}[/]")
+                music_path = path / f"{name}_music.mp3"
+                if not self._download_media(url, music_path, f"{desc}音乐"):
+                    self.console.print(f"[yellow]⚠️  音乐下载失败[/]")
 
-            # 下载封面
+            # 下载封面（非关键，失败不影响整体流程）
             if self.cover and aweme["awemeType"] == 0:
                 if url := aweme.get("video", {}).get("cover", {}).get("url_list", [None])[0]:
-                    cover_path = path / f"{name}_cover.jpeg"
-                    if not self._download_media(url, cover_path, f"[封面]{desc}"):
-                        self.console.print(f"[yellow]⚠️  封面下载失败: {desc}[/]")
+                    cover_path = path / f"{name}_cover.jpg"
+                    if not self._download_media(url, cover_path, f"{desc}封面"):
+                        self.console.print(f"[yellow]⚠️  封面下载失败[/]")
 
-            # 下载头像
+            # 下载头像（非关键，失败不影响整体流程）
             if self.avatar:
                 if url := aweme.get("author", {}).get("avatar", {}).get("url_list", [None])[0]:
-                    avatar_path = path / f"{name}_avatar.jpeg"
-                    if not self._download_media(url, avatar_path, f"[头像]{desc}"):
-                        self.console.print(f"[yellow]⚠️  头像下载失败: {desc}[/]")
+                    avatar_path = path / f"{name}_avatar.jpg"
+                    if not self._download_media(url, avatar_path, f"{desc}头像"):
+                        self.console.print(f"[yellow]⚠️  头像下载失败[/]")
                     
         except Exception as e:
+            logger.error(f"下载媒体文件时出错: {str(e)}")
             raise Exception(f"下载失败: {str(e)}")
 
     def awemeDownload(self, awemeDict: dict, savePath: Path) -> None:
@@ -107,21 +136,50 @@ class Download(object):
             save_path = Path(savePath)
             save_path.mkdir(parents=True, exist_ok=True)
             
-            # 构建文件名
-            file_name = f"{awemeDict['create_time']}_{utils.replaceStr(awemeDict['desc'])}"
-            aweme_path = save_path / file_name if self.folderstyle else save_path
-            aweme_path.mkdir(exist_ok=True)
+            # 获取用户信息和时间信息
+            author_name = utils.replaceStr(awemeDict.get('author', {}).get('nickname', 'unknown'))
+            create_time = awemeDict.get('create_time', time.strftime("%Y-%m-%d_%H.%M.%S"))
             
-            # 保存JSON数据
-            if self.resjson:
-                self._save_json(aweme_path / f"{file_name}_result.json", awemeDict)
+            # 构建文件名 - 使用用户名+时间命名，不再使用视频描述
+            file_name = f"{author_name}_{create_time}"
+            
+            # 创建作品目录
+            if self.folderstyle:
+                # 处理目录名以避免路径问题
+                aweme_path = save_path / file_name
+                # 强制处理目录名，确保规范
+                aweme_path = Path(str(aweme_path).rstrip())
+                try:
+                    aweme_path.mkdir(exist_ok=True)
+                except Exception as e:
+                    # 如果创建目录失败，使用简化的目录名
+                    logger.warning(f"创建目录失败: {str(e)}, 尝试使用简化名称")
+                    simple_name = f"User_{create_time}"
+                    aweme_path = save_path / simple_name
+                    aweme_path.mkdir(exist_ok=True)
+                    # 更新文件名以匹配目录名
+                    file_name = simple_name
+            else:
+                aweme_path = save_path
                 
+            # 保存原始描述到JSON数据的额外字段，方便以后查询
+            if self.resjson:
+                # 添加原始描述到JSON数据
+                if 'desc' in awemeDict:
+                    awemeDict['original_desc'] = awemeDict['desc']
+                # 添加用于显示的文件名信息
+                awemeDict['file_name'] = file_name
+                
+                json_path = aweme_path / f"{file_name}_result.json"
+                self._save_json(json_path, awemeDict)
+            
             # 下载媒体文件
-            desc = file_name[:30]
-            self._download_media_files(awemeDict, aweme_path, file_name, desc)
+            self._download_media_files(awemeDict, aweme_path, file_name, f"[{author_name}]")
                 
         except Exception as e:
             logger.error(f"处理作品时出错: {str(e)}")
+            # 重新抛出异常，以便上层函数可以感知到错误
+            raise
 
     def _save_json(self, path: Path, data: dict) -> None:
         """保存JSON数据，确保使用UTF-8编码"""
@@ -160,6 +218,7 @@ class Download(object):
         start_time = time.time()
         total_count = len(awemeList)
         success_count = 0
+        failed_count = 0
         
         # 显示下载信息面板
         self.console.print(Panel(
@@ -179,13 +238,24 @@ class Download(object):
                 total=total_count
             )
             
-            for aweme in awemeList:
+            for i, aweme in enumerate(awemeList):
                 try:
+                    # 显示当前正在下载的作品信息
+                    desc = aweme.get('desc', '未知')[:30]
+                    create_time = aweme.get('create_time', '')
+                    self.console.print(f"[cyan]⬇️ 下载[{i+1}/{total_count}]: {create_time} - {desc}[/]")
+                    
                     self.awemeDownload(awemeDict=aweme, savePath=save_path)
                     success_count += 1
                     self.progress.update(download_task, advance=1)
                 except Exception as e:
-                    self.console.print(f"[red]❌ 下载失败: {str(e)}[/]")
+                    # 详细记录失败原因
+                    failed_count += 1
+                    self.console.print(f"[red]❌ 下载失败[{i+1}/{total_count}]: {str(e)}[/]")
+                    # 尝试获取更多错误信息
+                    import traceback
+                    logger.error(f"详细错误信息: {traceback.format_exc()}")
+                    self.progress.update(download_task, advance=1)
 
         # 显示下载完成统计
         end_time = time.time()
@@ -197,6 +267,7 @@ class Download(object):
             Text.assemble(
                 ("下载完成\n", "bold green"),
                 (f"成功: {success_count}/{total_count}\n", "green"),
+                (f"失败: {failed_count}/{total_count}\n", "red" if failed_count > 0 else "green"),
                 (f"用时: {minutes}分{seconds}秒\n", "green"),
                 (f"保存位置: {save_path}\n", "green"),
             ),
