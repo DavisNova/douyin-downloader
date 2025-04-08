@@ -20,7 +20,7 @@ from rich.text import Text
 from rich import print as rprint
 
 from apiproxy.douyin import douyin_headers
-from apiproxy.common import utils
+from apiproxy.common import utils as douyin_utils
 
 logger = logging.getLogger("douyin_downloader")
 console = Console()
@@ -137,7 +137,7 @@ class Download(object):
             save_path.mkdir(parents=True, exist_ok=True)
             
             # 获取用户信息和时间信息
-            author_name = utils.replaceStr(awemeDict.get('author', {}).get('nickname', 'unknown'))
+            author_name = douyin_utils.replaceStr(awemeDict.get('author', {}).get('nickname', 'unknown'))
             create_time = awemeDict.get('create_time', time.strftime("%Y-%m-%d_%H.%M.%S"))
             
             # 构建文件名 - 使用用户名+时间命名，不再使用视频描述

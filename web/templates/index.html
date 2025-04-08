@@ -75,7 +75,12 @@
                                     
                                     <div class="mb-3">
                                         <label for="links" class="form-label fw-bold">下载链接</label>
-                                        <textarea class="form-control" id="links" name="links" rows="4" placeholder="每行一个链接，例如：https://v.douyin.com/xxx/">{{ "\n".join(config.get("link", [])) }}</textarea>
+                                        <div class="input-group mb-2">
+                                            <textarea class="form-control" id="links" name="links" rows="4" placeholder="每行一个链接，例如：https://v.douyin.com/xxx/">{{ "\n".join(config.get("link", [])) }}</textarea>
+                                            <button class="btn btn-outline-primary" type="button" id="userCollectionBtn" title="用户集合">
+                                                <i class="bi bi-people-fill"></i>
+                                            </button>
+                                        </div>
                                         <div class="form-text">支持作品链接、个人主页、合集、音乐等多种链接</div>
                                     </div>
                                     
@@ -276,6 +281,75 @@
 
         <!-- 提示信息 -->
         <div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+    </div>
+
+    <!-- 用户集合模态框 -->
+    <div class="modal fade" id="userCollectionModal" tabindex="-1" aria-labelledby="userCollectionModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="userCollectionModalLabel"><i class="bi bi-people-fill me-2"></i>用户集合</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- 添加用户表单 -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="bi bi-person-plus-fill me-2"></i>添加用户</h6>
+                        </div>
+                        <div class="card-body">
+                            <form id="addUserForm" class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="userLink" class="form-label">用户链接</label>
+                                    <input type="text" class="form-control" id="userLink" placeholder="https://www.douyin.com/user/..." required>
+                                    <div class="form-text">填入抖音用户主页链接</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="customName" class="form-label">自定义名称</label>
+                                    <input type="text" class="form-control" id="customName" placeholder="输入便于识别的名称">
+                                    <div class="form-text">不填则使用默认名称</div>
+                                </div>
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-plus-circle me-1"></i>添加用户
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- 用户列表 -->
+                    <div class="card">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-list-ul me-2"></i>用户列表</h6>
+                            <button id="refreshUserListBtn" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-arrow-clockwise"></i> 刷新
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th width="30%">用户名称</th>
+                                            <th width="45%">链接</th>
+                                            <th width="25%">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="userCollectionList">
+                                        <!-- 用户列表将通过JavaScript填充 -->
+                                        <tr><td colspan="3" class="text-center">加载中...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <footer class="footer mt-5 py-3 bg-light">

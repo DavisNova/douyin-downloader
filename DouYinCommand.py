@@ -33,7 +33,8 @@ except ImportError:
 from apiproxy.douyin.douyin import Douyin
 from apiproxy.douyin.download import Download
 from apiproxy.douyin import douyin_headers
-from apiproxy.common import utils
+from apiproxy.common import utils as douyin_utils
+from utils import logger
 
 @dataclass
 class DownloadConfig:
@@ -105,22 +106,22 @@ configModel = {
 def argument():
     parser = argparse.ArgumentParser(description='抖音批量下载工具 使用帮助')
     parser.add_argument("--cmd", "-C", help="使用命令行(True)或者配置文件(False), 默认为False",
-                        type=utils.str2bool, required=False, default=False)
+                        type=douyin_utils.str2bool, required=False, default=False)
     parser.add_argument("--link", "-l",
                         help="作品(视频或图集)、直播、合集、音乐集合、个人主页的分享链接或者电脑浏览器网址, 可以设置多个链接(删除文案, 保证只有URL, https://v.douyin.com/kcvMpuN/ 或者 https://www.douyin.com/开头的)",
                         type=str, required=False, default=[], action="append")
     parser.add_argument("--path", "-p", help="下载保存位置, 默认当前文件位置",
                         type=str, required=False, default=os.getcwd())
     parser.add_argument("--music", "-m", help="是否下载视频中的音乐(True/False), 默认为True",
-                        type=utils.str2bool, required=False, default=True)
+                        type=douyin_utils.str2bool, required=False, default=True)
     parser.add_argument("--cover", "-c", help="是否下载视频的封面(True/False), 默认为True, 当下载视频时有效",
-                        type=utils.str2bool, required=False, default=True)
+                        type=douyin_utils.str2bool, required=False, default=True)
     parser.add_argument("--avatar", "-a", help="是否下载作者的头像(True/False), 默认为True",
-                        type=utils.str2bool, required=False, default=True)
+                        type=douyin_utils.str2bool, required=False, default=True)
     parser.add_argument("--json", "-j", help="是否保存获取到的数据(True/False), 默认为True",
-                        type=utils.str2bool, required=False, default=True)
+                        type=douyin_utils.str2bool, required=False, default=True)
     parser.add_argument("--folderstyle", "-fs", help="文件保存风格, 默认为True",
-                        type=utils.str2bool, required=False, default=True)
+                        type=douyin_utils.str2bool, required=False, default=True)
     parser.add_argument("--mode", "-M", help="link是个人主页时, 设置下载发布的作品(post)或喜欢的作品(like)或者用户所有合集(mix), 默认为post, 可以设置多种模式",
                         type=str, required=False, default=[], action="append")
     parser.add_argument("--postnumber", help="主页下作品下载个数设置, 默认为0 全部下载",
@@ -134,17 +135,17 @@ def argument():
     parser.add_argument("--musicnumber", help="音乐(原声)下作品下载个数设置, 默认为0 全部下载",
                         type=int, required=False, default=0)
     parser.add_argument("--database", "-d", help="是否使用数据库, 默认为True 使用数据库; 如果不使用数据库, 增量更新不可用",
-                        type=utils.str2bool, required=False, default=True)
+                        type=douyin_utils.str2bool, required=False, default=True)
     parser.add_argument("--postincrease", help="是否开启主页作品增量下载(True/False), 默认为False",
-                        type=utils.str2bool, required=False, default=False)
+                        type=douyin_utils.str2bool, required=False, default=False)
     parser.add_argument("--likeincrease", help="是否开启主页喜欢增量下载(True/False), 默认为False",
-                        type=utils.str2bool, required=False, default=False)
+                        type=douyin_utils.str2bool, required=False, default=False)
     parser.add_argument("--allmixincrease", help="是否开启主页合集增量下载(True/False), 默认为False",
-                        type=utils.str2bool, required=False, default=False)
+                        type=douyin_utils.str2bool, required=False, default=False)
     parser.add_argument("--mixincrease", help="是否开启单个合集下作品增量下载(True/False), 默认为False",
-                        type=utils.str2bool, required=False, default=False)
+                        type=douyin_utils.str2bool, required=False, default=False)
     parser.add_argument("--musicincrease", help="是否开启音乐(原声)下作品增量下载(True/False), 默认为False",
-                        type=utils.str2bool, required=False, default=False)
+                        type=douyin_utils.str2bool, required=False, default=False)
     parser.add_argument("--thread", "-t",
                         help="设置线程数, 默认5个线程",
                         type=int, required=False, default=5)
@@ -296,7 +297,7 @@ def handle_user_download(dy, dl, key):
     data = dy.getUserDetailInfo(sec_uid=key)
     nickname = ""
     if data and data.get('user'):
-        nickname = utils.replaceStr(data['user']['nickname'])
+        nickname = douyin_utils.replaceStr(data['user']['nickname'])
 
     userPath = os.path.join(configModel["path"], f"user_{nickname}_{key}")
     os.makedirs(userPath, exist_ok=True)
@@ -341,7 +342,7 @@ def _handle_mix_mode(dy, dl, key, userPath):
 
     for mix_id, mix_name in mixIdNameDict.items():
         douyin_logger.info(f'[  提示  ]:正在下载合集 [{mix_name}] 中的作品')
-        mix_file_name = utils.replaceStr(mix_name)
+        mix_file_name = douyin_utils.replaceStr(mix_name)
         datalist = dy.getMixInfo(
             mix_id, 
             35, 
@@ -374,7 +375,7 @@ def handle_mix_download(dy, dl, key):
             douyin_logger.error("获取合集信息失败")
             return
             
-        mixname = utils.replaceStr(datalist[0]["mix_info"]["mix_name"])
+        mixname = douyin_utils.replaceStr(datalist[0]["mix_info"]["mix_name"])
         mixPath = os.path.join(configModel["path"], f"mix_{mixname}_{key}")
         os.makedirs(mixPath, exist_ok=True)
         dl.userDownload(awemeList=datalist, savePath=mixPath)
@@ -387,7 +388,7 @@ def handle_music_download(dy, dl, key):
     datalist = dy.getMusicInfo(key, 35, configModel["number"]["music"], configModel["increase"]["music"])
 
     if datalist:
-        musicname = utils.replaceStr(datalist[0]["music"]["title"])
+        musicname = douyin_utils.replaceStr(datalist[0]["music"]["title"])
         musicPath = os.path.join(configModel["path"], f"music_{musicname}_{key}")
         os.makedirs(musicPath, exist_ok=True)
         dl.userDownload(awemeList=datalist, savePath=musicPath)
@@ -455,7 +456,7 @@ def handle_live_download(dy, dl, key):
         livePath = os.path.join(configModel["path"], "live")
         os.makedirs(livePath, exist_ok=True)
         
-        live_file_name = utils.replaceStr(f"{key}{live_json['nickname']}")
+        live_file_name = douyin_utils.replaceStr(f"{key}{live_json['nickname']}")
         json_path = os.path.join(livePath, f"{live_file_name}.json")
         
         douyin_logger.info("[  提示  ]:正在保存获取到的信息到result.json")

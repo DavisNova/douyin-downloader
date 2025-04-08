@@ -146,6 +146,84 @@ def index():
     config = load_config()
     return render_template('index.html', config=config)
 
+# 用户集合API路由
+@app.route('/api/users', methods=['GET'])
+def get_users():
+    """获取所有用户"""
+    try:
+        # 导入数据库模块
+        from apiproxy.douyin.database import DataBase
+        db = DataBase()
+        users = db.get_all_users()
+        
+        # 转换为字典列表
+        result = []
+        for user in users:
+            result.append({
+                'id': user[0],
+                'sec_uid': user[1],
+                'user_link': user[2],
+                'custom_name': user[3],
+                'add_time': user[4]
+            })
+        
+        return jsonify({"status": "success", "data": result})
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"获取用户列表失败: {str(e)}"})
+
+@app.route('/api/users', methods=['POST'])
+def add_user():
+    """添加用户到集合"""
+    try:
+        data = request.json
+        
+        # 验证必要字段
+        if not data.get('user_link'):
+            return jsonify({"status": "error", "message": "用户链接不能为空"})
+            
+        # 从链接中提取sec_uid
+        user_link = data.get('user_link')
+        sec_uid = None
+        
+        # 提取sec_uid的正则表达式模式
+        if '/user/' in user_link:
+            sec_uid_match = re.search(r'/user/([^/?&]+)', user_link)
+            if sec_uid_match:
+                sec_uid = sec_uid_match.group(1)
+                
+        if not sec_uid:
+            return jsonify({"status": "error", "message": "无法从链接中提取用户ID"})
+            
+        # 使用自定义名称，如果没有则使用sec_uid
+        custom_name = data.get('custom_name', '').strip() or f"用户_{sec_uid[:8]}"
+        
+        # 导入数据库模块并添加用户
+        from apiproxy.douyin.database import DataBase
+        db = DataBase()
+        success = db.add_user_to_collection(sec_uid, user_link, custom_name)
+        
+        if success:
+            return jsonify({"status": "success", "message": "用户添加成功"})
+        else:
+            return jsonify({"status": "error", "message": "添加用户失败"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"添加用户失败: {str(e)}"})
+
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    """从集合中删除用户"""
+    try:
+        from apiproxy.douyin.database import DataBase
+        db = DataBase()
+        success = db.delete_user_from_collection(user_id)
+        
+        if success:
+            return jsonify({"status": "success", "message": "用户删除成功"})
+        else:
+            return jsonify({"status": "error", "message": "删除用户失败"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"删除用户失败: {str(e)}"})
+
 @app.route('/save', methods=['POST'])
 def save():
     """保存配置"""

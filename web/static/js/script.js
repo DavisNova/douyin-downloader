@@ -30,7 +30,172 @@ $(document).ready(function() {
     $('#clearLogBtn').click(function() {
         $('#outputLog').empty();
     });
+    
+    // 用户集合按钮点击事件
+    $('#userCollectionBtn').click(function() {
+        loadUserCollection();
+        $('#userCollectionModal').modal('show');
+    });
+    
+    // 刷新用户列表按钮点击事件
+    $('#refreshUserListBtn').click(function() {
+        loadUserCollection();
+    });
+    
+    // 添加用户表单提交事件
+    $('#addUserForm').submit(function(e) {
+        e.preventDefault();
+        addUserToCollection();
+    });
 });
+
+// 加载用户集合
+function loadUserCollection() {
+    $.ajax({
+        url: '/api/users',
+        type: 'GET',
+        success: function(response) {
+            if (response.status === 'success') {
+                renderUserCollection(response.data);
+            } else {
+                showToast('加载用户集合失败: ' + response.message, 'danger');
+            }
+        },
+        error: function(xhr, status, error) {
+            showToast('请求失败: ' + error, 'danger');
+        }
+    });
+}
+
+// 渲染用户集合
+function renderUserCollection(users) {
+    const $userList = $('#userCollectionList');
+    $userList.empty();
+    
+    if (users.length === 0) {
+        $userList.html('<tr><td colspan="3" class="text-center">暂无用户，请添加</td></tr>');
+        return;
+    }
+    
+    users.forEach(function(user) {
+        const shortLink = user.user_link.length > 40 ? 
+            user.user_link.substring(0, 37) + '...' : 
+            user.user_link;
+            
+        const $row = $(`
+            <tr data-id="${user.id}">
+                <td>${user.custom_name}</td>
+                <td><small>${shortLink}</small></td>
+                <td>
+                    <button class="btn btn-sm btn-primary select-user-btn" data-link="${user.user_link}">
+                        <i class="bi bi-cursor-fill"></i> 选择
+                    </button>
+                    <button class="btn btn-sm btn-danger delete-user-btn">
+                        <i class="bi bi-trash"></i> 删除
+                    </button>
+                </td>
+            </tr>
+        `);
+        
+        $userList.append($row);
+    });
+    
+    // 绑定选择用户按钮点击事件
+    $('.select-user-btn').click(function() {
+        const link = $(this).data('link');
+        selectUser(link);
+    });
+    
+    // 绑定删除用户按钮点击事件
+    $('.delete-user-btn').click(function() {
+        const userId = $(this).closest('tr').data('id');
+        deleteUser(userId);
+    });
+}
+
+// 添加用户到集合
+function addUserToCollection() {
+    const userLink = $('#userLink').val().trim();
+    const customName = $('#customName').val().trim();
+    
+    if (!userLink) {
+        showToast('请输入用户链接', 'warning');
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/users',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            user_link: userLink,
+            custom_name: customName
+        }),
+        success: function(response) {
+            if (response.status === 'success') {
+                showToast('用户添加成功', 'success');
+                loadUserCollection();
+                // 清空表单
+                $('#userLink').val('');
+                $('#customName').val('');
+            } else {
+                showToast('添加用户失败: ' + response.message, 'danger');
+            }
+        },
+        error: function(xhr, status, error) {
+            showToast('请求失败: ' + error, 'danger');
+        }
+    });
+}
+
+// 删除用户
+function deleteUser(userId) {
+    if (!confirm('确定要删除此用户吗？')) {
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/users/' + userId,
+        type: 'DELETE',
+        success: function(response) {
+            if (response.status === 'success') {
+                showToast('用户删除成功', 'success');
+                loadUserCollection();
+            } else {
+                showToast('删除用户失败: ' + response.message, 'danger');
+            }
+        },
+        error: function(xhr, status, error) {
+            showToast('请求失败: ' + error, 'danger');
+        }
+    });
+}
+
+// 选择用户
+function selectUser(link) {
+    // 获取当前输入框中的内容
+    const currentLinks = $('#links').val();
+    
+    // 如果当前内容为空，直接设置链接
+    if (!currentLinks) {
+        $('#links').val(link);
+    } else {
+        // 检查链接是否已存在
+        const linkLines = currentLinks.split('\n');
+        if (!linkLines.includes(link)) {
+            // 如果链接不存在，则添加到末尾
+            $('#links').val(currentLinks + '\n' + link);
+        } else {
+            showToast('链接已存在', 'info');
+        }
+    }
+    
+    // 关闭模态框
+    $('#userCollectionModal').modal('hide');
+    
+    // 显示提示
+    showToast('已添加链接到下载列表', 'success');
+}
 
 // 初始化SocketIO连接
 function initSocketIO() {
@@ -198,51 +363,46 @@ function runDownload() {
                             isDownloading = true;
                             
                             // 显示进度容器
-                            $('#progressContainer').slideDown();
+                            $('#progressContainer').show();
                             
-                            // 滚动到进度区域
-                            $('html, body').animate({
-                                scrollTop: $('#progressContainer').offset().top - 20
-                            }, 500);
+                            // 清空输出日志
+                            $('#outputLog').empty();
                             
                             // 更新按钮状态
                             $('#runBtn').prop('disabled', true).html('<i class="bi bi-hourglass-split me-2"></i>下载中...');
                             
-                            // 清空日志并添加开始信息
-                            $('#outputLog').empty();
-                            appendToLog('下载任务已启动，正在等待数据...', 'success');
-                            
-                            // 重置进度条
-                            updateProgress(0);
-                            
-                            // 显示结果提示
+                            // 显示提示
                             showToast('下载任务已启动', 'success');
                         } else {
-                            // 下载失败
-                            $('#runBtn').prop('disabled', false).html('<i class="bi bi-play-fill me-2"></i>开始下载');
-                            showToast('下载任务启动失败: ' + runResponse.message, 'danger');
+                            // 恢复按钮状态
+                            $('#runBtn').prop('disabled', false).html('<i class="bi bi-cloud-download me-2"></i>开始下载');
+                            
+                            // 显示错误提示
+                            showToast('启动下载任务失败: ' + runResponse.message, 'danger');
                         }
                     },
                     error: function(xhr, status, error) {
                         // 恢复按钮状态
-                        $('#runBtn').prop('disabled', false).html('<i class="bi bi-play-fill me-2"></i>开始下载');
+                        $('#runBtn').prop('disabled', false).html('<i class="bi bi-cloud-download me-2"></i>开始下载');
                         
                         // 显示错误提示
-                        showToast('下载请求失败: ' + error, 'danger');
+                        showToast('请求失败: ' + error, 'danger');
                     }
                 });
             } else {
-                // 配置保存失败
-                $('#runBtn').prop('disabled', false).html('<i class="bi bi-play-fill me-2"></i>开始下载');
-                showToast('配置保存失败，无法开始下载: ' + response.message, 'danger');
+                // 恢复按钮状态
+                $('#runBtn').prop('disabled', false).html('<i class="bi bi-cloud-download me-2"></i>开始下载');
+                
+                // 显示错误提示
+                showToast('保存配置失败: ' + response.message, 'danger');
             }
         },
         error: function(xhr, status, error) {
             // 恢复按钮状态
-            $('#runBtn').prop('disabled', false).html('<i class="bi bi-play-fill me-2"></i>开始下载');
+            $('#runBtn').prop('disabled', false).html('<i class="bi bi-cloud-download me-2"></i>开始下载');
             
             // 显示错误提示
-            showToast('保存配置失败，无法开始下载: ' + error, 'danger');
+            showToast('请求失败: ' + error, 'danger');
         }
     });
 }
@@ -260,12 +420,14 @@ function stopDownload() {
             // 恢复按钮状态
             $('#stopBtn').prop('disabled', false).html('<i class="bi bi-stop-fill me-1"></i>停止下载');
             
+            // 显示结果提示
             if (response.status === 'success') {
+                showToast('下载任务已停止', 'success');
                 resetDownloadUI();
-                appendToLog('下载任务已手动停止', 'warning');
-                showToast('下载任务已停止', 'warning');
+            } else if (response.status === 'warning') {
+                showToast(response.message, 'warning');
             } else {
-                showToast(response.message, response.status === 'warning' ? 'warning' : 'danger');
+                showToast('停止下载任务失败: ' + response.message, 'danger');
             }
         },
         error: function(xhr, status, error) {
@@ -273,30 +435,37 @@ function stopDownload() {
             $('#stopBtn').prop('disabled', false).html('<i class="bi bi-stop-fill me-1"></i>停止下载');
             
             // 显示错误提示
-            showToast('停止请求失败: ' + error, 'danger');
+            showToast('请求失败: ' + error, 'danger');
         }
     });
 }
 
-// 重置下载UI状态
+// 重置下载UI
 function resetDownloadUI() {
     isDownloading = false;
-    $('#runBtn').prop('disabled', false).html('<i class="bi bi-play-fill me-2"></i>开始下载');
+    
+    // 恢复按钮状态
+    $('#runBtn').prop('disabled', false).html('<i class="bi bi-cloud-download me-2"></i>开始下载');
+    $('#stopBtn').prop('disabled', false).html('<i class="bi bi-stop-fill me-1"></i>停止下载');
+    
+    // 重置进度条
+    $('#progressBar').css('width', '0%').attr('aria-valuenow', 0).text('0%');
 }
 
 // 显示提示框
-function showToast(message, type) {
-    // 创建随机ID
-    var toastId = 'toast-' + Math.floor(Math.random() * 1000000);
+function showToast(message, type = 'success') {
+    const toastId = 'toast-' + Date.now();
     
-    // 创建提示框HTML
-    var toast = `
-        <div id="${toastId}" class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="d-flex">
-                <div class="toast-body">
-                    ${message}
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    // 创建提示框元素
+    const toast = `
+        <div id="${toastId}" class="toast bg-${type}" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <strong class="me-auto">${type === 'success' ? '成功' : type === 'warning' ? '警告' : type === 'danger' ? '错误' : '提示'}</strong>
+                <small>${new Date().toLocaleTimeString()}</small>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body text-white">
+                ${message}
             </div>
         </div>
     `;
@@ -304,16 +473,16 @@ function showToast(message, type) {
     // 添加到容器
     $('#toast-container').append(toast);
     
-    // 初始化并显示
-    var toastElement = document.getElementById(toastId);
-    var toastInstance = new bootstrap.Toast(toastElement, {
-        autohide: true,
+    // 初始化提示框
+    const toastElement = new bootstrap.Toast(document.getElementById(toastId), {
         delay: 3000
     });
-    toastInstance.show();
     
-    // 移除监听
-    toastElement.addEventListener('hidden.bs.toast', function() {
-        toastElement.remove();
+    // 显示提示框
+    toastElement.show();
+    
+    // 提示框关闭后删除元素
+    $(`#${toastId}`).on('hidden.bs.toast', function() {
+        $(this).remove();
     });
 } 

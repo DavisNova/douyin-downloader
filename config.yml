@@ -17,7 +17,7 @@ increase:
   post: true
 json: true
 link:
-- https://www.douyin.com/user/MS4wLjABAAAA2xbwJoXA00Bi1d4bHhZKbXjmLrGgQZNrCKCK8xlpzH4cEzalh_3oknnco7cAPuti
+- https://www.douyin.com/user/MS4wLjABAAAAIknhyIhDxQe6fsexjsu0qL7uzOUdWsINm2PCOLyzZgU
 mode:
 - post
 music: true
@@ -28,5 +28,5 @@ number:
   music: 5
   post: 0
 path: ./downloaded/
-start_time: '2025-04-05'
+start_time: '2025-04-01'
 thread: 5

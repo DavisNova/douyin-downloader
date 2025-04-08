@@ -14,6 +14,7 @@ class DataBase(object):
         self.create_user_like_table()
         self.create_mix_table()
         self.create_music_table()
+        self.create_user_collection_table()
 
     def create_user_post_table(self):
         sql = """CREATE TABLE if not exists t_user_post (
@@ -28,6 +29,60 @@ class DataBase(object):
             self.conn.commit()
         except Exception as e:
             pass
+
+    def create_user_collection_table(self):
+        sql = """CREATE TABLE if not exists t_user_collection (
+                    id integer primary key autoincrement,
+                    sec_uid varchar(200),
+                    user_link varchar(500),
+                    custom_name varchar(200),
+                    add_time timestamp default CURRENT_TIMESTAMP
+                );"""
+        
+        try:
+            self.cursor.execute(sql)
+            self.conn.commit()
+        except Exception as e:
+            pass
+            
+    def get_all_users(self):
+        sql = """select id, sec_uid, user_link, custom_name, add_time from t_user_collection order by add_time desc;"""
+        
+        try:
+            self.cursor.execute(sql)
+            self.conn.commit()
+            return self.cursor.fetchall()
+        except Exception as e:
+            return []
+            
+    def add_user_to_collection(self, sec_uid, user_link, custom_name):
+        check_sql = """select id from t_user_collection where sec_uid=?;"""
+        
+        try:
+            self.cursor.execute(check_sql, (sec_uid,))
+            existing = self.cursor.fetchone()
+            
+            if existing:
+                update_sql = """update t_user_collection set user_link=?, custom_name=?, add_time=CURRENT_TIMESTAMP where sec_uid=?;"""
+                self.cursor.execute(update_sql, (user_link, custom_name, sec_uid))
+            else:
+                insert_sql = """insert into t_user_collection (sec_uid, user_link, custom_name) values(?,?,?);"""
+                self.cursor.execute(insert_sql, (sec_uid, user_link, custom_name))
+                
+            self.conn.commit()
+            return True
+        except Exception as e:
+            return False
+            
+    def delete_user_from_collection(self, user_id):
+        sql = """delete from t_user_collection where id=?;"""
+        
+        try:
+            self.cursor.execute(sql, (user_id,))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            return False
 
     def get_user_post(self, sec_uid: str, aweme_id: int):
         sql = """select id, sec_uid, aweme_id, rawdata from t_user_post where sec_uid=? and aweme_id=?;"""

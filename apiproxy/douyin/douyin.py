@@ -17,7 +17,7 @@ from apiproxy.douyin import douyin_headers
 from apiproxy.douyin.urls import Urls
 from apiproxy.douyin.result import Result
 from apiproxy.douyin.database import DataBase
-from apiproxy.common import utils
+from apiproxy.common import utils as douyin_utils
 from utils import logger
 
 # 创建全局console实例
@@ -98,7 +98,7 @@ class Douyin(object):
             key_type = "music"
         elif "/webcast/reflow/" in urlstr:
             key1 = re.findall('reflow/(\d+)?', urlstr)[0]
-            url = self.urls.LIVE2 + utils.getXbogus(
+            url = self.urls.LIVE2 + douyin_utils.getXbogus(
                 f'live_id=1&room_id={key1}&app_id=1128')
             res = requests.get(url, headers=douyin_headers)
             resjson = json.loads(res.text)
@@ -131,7 +131,7 @@ class Douyin(object):
                     try:
                         # 单作品接口返回 'aweme_detail'
                         # 主页作品接口返回 'aweme_list'->['aweme_detail']
-                        jx_url = self.urls.POST_DETAIL + utils.getXbogus(
+                        jx_url = self.urls.POST_DETAIL + douyin_utils.getXbogus(
                             f'aweme_id={aweme_id}&device_platform=webapp&aid=6383')
 
                         raw = requests.get(url=jx_url, headers=douyin_headers).text
@@ -219,10 +219,10 @@ class Douyin(object):
                 try:
                     # 构建请求URL
                     if mode == "post":
-                        url = self.urls.USER_POST + utils.getXbogus(
+                        url = self.urls.USER_POST + douyin_utils.getXbogus(
                             f'sec_user_id={sec_uid}&count={count}&max_cursor={max_cursor}&device_platform=webapp&aid=6383')
                     elif mode == "like":
-                        url = self.urls.USER_FAVORITE_A + utils.getXbogus(
+                        url = self.urls.USER_FAVORITE_A + douyin_utils.getXbogus(
                             f'sec_user_id={sec_uid}&count={count}&max_cursor={max_cursor}&device_platform=webapp&aid=6383')
                     else:
                         self.console.print("[red]❌ 模式选择错误，仅支持post、like[/]")
@@ -344,7 +344,7 @@ class Douyin(object):
         while True:
             # 接口不稳定, 有时服务器不返回数据, 需要重新获取
             try:
-                live_api = self.urls.LIVE + utils.getXbogus(
+                live_api = self.urls.LIVE + douyin_utils.getXbogus(
                     f'aid=6383&device_platform=web&web_rid={web_rid}')
 
                 response = requests.get(live_api, headers=douyin_headers)
@@ -460,7 +460,7 @@ class Douyin(object):
 
             while True:  # 外层循环
                 try:
-                    url = self.urls.USER_MIX + utils.getXbogus(
+                    url = self.urls.USER_MIX + douyin_utils.getXbogus(
                         f'mix_id={mix_id}&cursor={cursor}&count={count}&device_platform=webapp&aid=6383')
 
                     res = requests.get(url=url, headers=douyin_headers)
@@ -554,7 +554,7 @@ class Douyin(object):
             while True:
                 # 接口不稳定, 有时服务器不返回数据, 需要重新获取
                 try:
-                    url = self.urls.USER_MIX_LIST + utils.getXbogus(
+                    url = self.urls.USER_MIX_LIST + douyin_utils.getXbogus(
                         f'sec_user_id={sec_uid}&count={count}&cursor={cursor}&device_platform=webapp&aid=6383')
 
                     res = requests.get(url=url, headers=douyin_headers)
@@ -620,7 +620,7 @@ class Douyin(object):
 
             while True:
                 try:
-                    url = self.urls.MUSIC + utils.getXbogus(
+                    url = self.urls.MUSIC + douyin_utils.getXbogus(
                         f'music_id={music_id}&cursor={cursor}&count={count}&device_platform=webapp&aid=6383')
 
                     res = requests.get(url=url, headers=douyin_headers)
@@ -694,7 +694,7 @@ class Douyin(object):
         while True:
             # 接口不稳定, 有时服务器不返回数据, 需要重新获取
             try:
-                url = self.urls.USER_DETAIL + utils.getXbogus(
+                url = self.urls.USER_DETAIL + douyin_utils.getXbogus(
                         f'sec_user_id={sec_uid}&device_platform=webapp&aid=6383')
 
                 res = requests.get(url=url, headers=douyin_headers)
