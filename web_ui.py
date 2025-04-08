@@ -7,9 +7,6 @@
 
 import os
 import sys
-import webbrowser
-import threading
-import time
 
 # 确保工作目录正确
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -18,16 +15,9 @@ os.chdir(BASE_DIR)
 # 添加当前目录到Python路径
 sys.path.insert(0, BASE_DIR)
 
-def open_browser():
-    """延迟打开浏览器"""
-    time.sleep(1.5)  # 等待服务器启动
-    webbrowser.open('http://localhost:5000')
-
 if __name__ == "__main__":
     print("正在启动抖音下载器配置界面...")
-    
-    # 启动浏览器线程
-    threading.Thread(target=open_browser).start()
+    print("服务启动后，请访问 http://localhost:5000 来使用抖音下载器")
     
     try:
         from web.app import app
