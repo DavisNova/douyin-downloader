@@ -20,11 +20,11 @@ link:
   # -  https://v.douyin.com/iRGuJcW8/
   # -  https://v.douyin.com/iRGHQY5t/
   # - https://www.douyin.com/user/MS4wLjABAAAAXrGDowccDgJnarm2l95p80ojY5UpD-4VE_4WJwXcjvAMzQ79Ol1xizyLH8W3lgPX
-  - https://www.douyin.com/user/MS4wLjABAAAA6O7EZyfDRYXxJrUTpf91K3tmB4rBROkAw-nYMfld8ss
+  - https://www.douyin.com/user/MS4wLjABAAAAKWfNtt9eVcNNMqWDSvpxiaA7HTt4W0HqLvxIdpwWZSk
 
 # 下载保存位置, 默认当前文件位置
 # 必选
-path: ./Downloaded/
+path: ./downloaded/
 
 # 是否下载视频中的音乐(True/False), 默认为True
 # 可选
