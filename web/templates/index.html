@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>抖音下载器 - 配置面板</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.2/dist/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">
+                    <i class="bi bi-tiktok me-2"></i>抖音下载器
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#">配置面板</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="https://github.com/DavisNova/douyin-downloader" target="_blank">GitHub</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container mt-4">
+            <!-- 下载进度显示区域 -->
+            <div class="row mb-4" id="progressContainer" style="display: none;">
+                <div class="col-lg-8 mx-auto">
+                    <div class="card shadow">
+                        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="bi bi-cloud-download me-2"></i>下载进度</h5>
+                            <button id="stopBtn" class="btn btn-sm btn-danger">
+                                <i class="bi bi-stop-fill me-1"></i>停止下载
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="progress mb-3" style="height: 25px;">
+                                <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                            <div class="mt-3">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <h6 class="mb-0">实时输出:</h6>
+                                    <button id="clearLogBtn" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-trash me-1"></i>清空日志
+                                    </button>
+                                </div>
+                                <div id="outputLog" class="bg-light p-3 rounded" style="height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-8 mx-auto">
+                    <div class="card shadow">
+                        <div class="card-header bg-light">
+                            <h4 class="mb-0"><i class="bi bi-gear-fill me-2"></i>下载配置</h4>
+                        </div>
+                        <div class="card-body">
+                            <form id="configForm">
+                                <!-- 基本设置 -->
+                                <div class="mb-4">
+                                    <h5 class="border-bottom pb-2"><i class="bi bi-sliders me-2"></i>基本设置</h5>
+                                    
+                                    <div class="mb-3">
+                                        <label for="links" class="form-label fw-bold">下载链接</label>
+                                        <textarea class="form-control" id="links" name="links" rows="4" placeholder="每行一个链接，例如：https://v.douyin.com/xxx/">{{ "\n".join(config.get("link", [])) }}</textarea>
+                                        <div class="form-text">支持作品链接、个人主页、合集、音乐等多种链接</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="path" class="form-label fw-bold">保存路径</label>
+                                        <input type="text" class="form-control" id="path" name="path" value="{{ config.get('path', './downloaded/') }}">
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="thread" class="form-label fw-bold">线程数</label>
+                                        <input type="number" class="form-control" id="thread" name="thread" min="1" max="20" value="{{ config.get('thread', 5) }}">
+                                    </div>
+                                </div>
+
+                                <!-- 下载选项 -->
+                                <div class="mb-4">
+                                    <h5 class="border-bottom pb-2"><i class="bi bi-cloud-download-fill me-2"></i>下载选项</h5>
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="music" name="music" {% if config.get('music', True) %}checked{% endif %}>
+                                                <label class="form-check-label" for="music">下载音乐</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="cover" name="cover" {% if config.get('cover', True) %}checked{% endif %}>
+                                                <label class="form-check-label" for="cover">下载封面</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="avatar" name="avatar" {% if config.get('avatar', True) %}checked{% endif %}>
+                                                <label class="form-check-label" for="avatar">下载头像</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="json" name="json" {% if config.get('json', True) %}checked{% endif %}>
+                                                <label class="form-check-label" for="json">保存JSON数据</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="folderstyle" name="folderstyle" {% if config.get('folderstyle', True) %}checked{% endif %}>
+                                                <label class="form-check-label" for="folderstyle">使用文件夹风格</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="database" name="database" {% if config.get('database', True) %}checked{% endif %}>
+                                                <label class="form-check-label" for="database">使用数据库</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 下载模式 -->
+                                <div class="mb-4">
+                                    <h5 class="border-bottom pb-2"><i class="bi bi-grid-3x3-gap-fill me-2"></i>下载模式</h5>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-text mb-2">选择需要下载的内容类型（适用于用户主页）</div>
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="mode_post" name="modes" value="post" {% if 'post' in config.get('mode', []) %}checked{% endif %}>
+                                                    <label class="form-check-label" for="mode_post">发布作品</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="mode_like" name="modes" value="like" {% if 'like' in config.get('mode', []) %}checked{% endif %}>
+                                                    <label class="form-check-label" for="mode_like">喜欢作品</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="mode_mix" name="modes" value="mix" {% if 'mix' in config.get('mode', []) %}checked{% endif %}>
+                                                    <label class="form-check-label" for="mode_mix">合集作品</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 数量限制 -->
+                                <div class="mb-4">
+                                    <h5 class="border-bottom pb-2"><i class="bi bi-123 me-2"></i>数量限制</h5>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="number_post" class="form-label">发布作品数量</label>
+                                            <input type="number" class="form-control" id="number_post" name="number_post" min="0" value="{{ config.get('number', {}).get('post', 0) }}">
+                                            <div class="form-text">0表示全部下载</div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="number_like" class="form-label">喜欢作品数量</label>
+                                            <input type="number" class="form-control" id="number_like" name="number_like" min="0" value="{{ config.get('number', {}).get('like', 0) }}">
+                                            <div class="form-text">0表示全部下载</div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-4 mb-3">
+                                            <label for="number_allmix" class="form-label">主页合集数量</label>
+                                            <input type="number" class="form-control" id="number_allmix" name="number_allmix" min="0" value="{{ config.get('number', {}).get('allmix', 0) }}">
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label for="number_mix" class="form-label">单合集作品数量</label>
+                                            <input type="number" class="form-control" id="number_mix" name="number_mix" min="0" value="{{ config.get('number', {}).get('mix', 0) }}">
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label for="number_music" class="form-label">音乐作品数量</label>
+                                            <input type="number" class="form-control" id="number_music" name="number_music" min="0" value="{{ config.get('number', {}).get('music', 0) }}">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 增量更新 -->
+                                <div class="mb-4">
+                                    <h5 class="border-bottom pb-2"><i class="bi bi-arrow-up-circle-fill me-2"></i>增量更新</h5>
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="increase_post" name="increase_post" {% if config.get('increase', {}).get('post', False) %}checked{% endif %}>
+                                                <label class="form-check-label" for="increase_post">主页作品增量更新</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="increase_like" name="increase_like" {% if config.get('increase', {}).get('like', False) %}checked{% endif %}>
+                                                <label class="form-check-label" for="increase_like">喜欢作品增量更新</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="increase_allmix" name="increase_allmix" {% if config.get('increase', {}).get('allmix', False) %}checked{% endif %}>
+                                                <label class="form-check-label" for="increase_allmix">主页合集增量更新</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="increase_mix" name="increase_mix" {% if config.get('increase', {}).get('mix', False) %}checked{% endif %}>
+                                                <label class="form-check-label" for="increase_mix">单合集增量更新</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="increase_music" name="increase_music" {% if config.get('increase', {}).get('music', False) %}checked{% endif %}>
+                                                <label class="form-check-label" for="increase_music">音乐作品增量更新</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 时间范围 -->
+                                <div class="mb-4">
+                                    <h5 class="border-bottom pb-2"><i class="bi bi-calendar-date-fill me-2"></i>时间范围</h5>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="start_time" class="form-label">开始时间</label>
+                                            <input type="date" class="form-control" id="start_time" name="start_time" value="{{ config.get('start_time', '') }}">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="end_time" class="form-label">结束时间</label>
+                                            <input type="date" class="form-control" id="end_time" name="end_time" value="{{ config.get('end_time', '') }}">
+                                            <div class="form-text">不填则不限制时间范围</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 操作按钮 -->
+                                <div class="d-flex justify-content-between mt-4">
+                                    <button type="button" id="saveBtn" class="btn btn-primary btn-lg">
+                                        <i class="bi bi-save me-2"></i>保存配置
+                                    </button>
+                                    <button type="button" id="runBtn" class="btn btn-success btn-lg">
+                                        <i class="bi bi-play-fill me-2"></i>开始下载
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 提示信息 -->
+        <div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+    </div>
+
+    <footer class="footer mt-5 py-3 bg-light">
+        <div class="container text-center">
+            <span class="text-muted">抖音下载器 &copy; 2025</span>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html> 

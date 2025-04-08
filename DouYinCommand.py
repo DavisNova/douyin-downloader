@@ -279,8 +279,15 @@ def process_link(dy, dl, link):
             handler(dy, dl, key)
         else:
             douyin_logger.warning(f"[  警告  ]:未知的链接类型: {key_type}")
+    except UnicodeEncodeError as e:
+        # 专门处理编码错误
+        douyin_logger.error(f"处理链接时出现编码错误: {str(e)}")
+        douyin_logger.error("可能是下载内容含有emoji或特殊字符，已自动处理")
     except Exception as e:
+        # 处理其他所有错误
         douyin_logger.error(f"处理链接时出错: {str(e)}")
+        # 显示错误类型，方便调试
+        douyin_logger.error(f"错误类型: {type(e).__name__}")
 
 
 def handle_user_download(dy, dl, key):

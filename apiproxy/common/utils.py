@@ -21,17 +21,36 @@ class Utils(object):
     def replaceStr(self, filenamestr: str):
         """
         替换非法字符，缩短字符长度，使其能成为文件名
+        移除所有emoji和特殊Unicode字符，只保留基本汉字、字母和数字
         """
-        # 匹配 汉字 字母 数字 空格
-        match = "([0-9A-Za-z\u4e00-\u9fa5]+)"
-
-        result = re.findall(match, filenamestr)
-
-        result = "".join(result).strip()
-        if len(result) > 20:
-            result = result[:20]
-        # 去除前后空格
-        return result
+        if not filenamestr:
+            return "unknown"
+            
+        # 先移除emoji和特殊Unicode字符
+        try:
+            # 使用正则表达式只保留汉字、字母、数字和基本标点
+            match = re.compile(r'([0-9A-Za-z\u4e00-\u9fa5\s.,，。_\-]+)')
+            result = re.findall(match, filenamestr)
+            result = "".join(result).strip()
+            
+            # 如果结果为空，说明原字符串可能只包含emoji或特殊字符
+            if not result:
+                return "emoji_" + str(int(time.time()))
+                
+            # 限制文件名长度
+            if len(result) > 20:
+                result = result[:20]
+                
+            # 确保文件名不以点号或空格开头（避免隐藏文件）
+            result = result.lstrip('. ')
+            if not result:
+                return "file_" + str(int(time.time()))
+                
+            return result
+        except Exception as e:
+            # 处理任何可能的错误，确保总是返回一个有效的文件名
+            print(f"处理文件名时出错: {str(e)}")
+            return "file_" + str(int(time.time()))
 
     def resource_path(self, relative_path):
         if getattr(sys, 'frozen', False):  # 是否Bundle Resource

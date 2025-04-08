@@ -124,10 +124,28 @@ class Download(object):
             logger.error(f"处理作品时出错: {str(e)}")
 
     def _save_json(self, path: Path, data: dict) -> None:
-        """保存JSON数据"""
+        """保存JSON数据，确保使用UTF-8编码"""
         try:
-            with open(path, "w", encoding='utf-8') as f:
+            # 确保路径存在
+            path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # 使用UTF-8编码保存JSON文件
+            with open(path, "w", encoding='utf-8', errors='ignore') as f:
                 json.dump(data, ensure_ascii=False, indent=2, fp=f)
+        except UnicodeEncodeError as e:
+            logger.error(f"保存JSON时遇到编码错误: {path}, 错误: {str(e)}")
+            # 尝试使用不同的方法保存
+            try:
+                # 移除可能导致问题的字符
+                import re
+                text = json.dumps(data, ensure_ascii=False, indent=2)
+                # 移除不可打印字符
+                text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', text)
+                with open(path, "w", encoding='utf-8', errors='ignore') as f:
+                    f.write(text)
+                logger.info(f"已清理特殊字符后保存JSON: {path}")
+            except Exception as e2:
+                logger.error(f"二次尝试保存JSON失败: {path}, 错误: {str(e2)}")
         except Exception as e:
             logger.error(f"保存JSON失败: {path}, 错误: {str(e)}")
 

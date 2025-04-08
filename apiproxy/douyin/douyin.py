@@ -261,22 +261,44 @@ class Douyin(object):
                         # 数量限制检查
                         if number > 0 and len(awemeList) >= number:
                             self.console.print(f"[green]✅ 已达到限制数量: {number}[/]")
-                            return awemeList
+                            break
                             
                         # 增量更新检查
                         if self.database:
                             if mode == "post":
-                                if self.db.get_user_post(sec_uid=sec_uid, aweme_id=aweme['aweme_id']):
-                                    if increase and aweme['is_top'] == 0:
-                                        self.console.print("[green]✅ 增量更新完成[/]")
-                                        return awemeList
-                                else:
+                                # 检查数据库中是否已存在
+                                is_duplicate = self.db.get_user_post(sec_uid=sec_uid, aweme_id=aweme['aweme_id'])
+                                
+                                # 插入新记录（无论是否增量更新模式）
+                                if not is_duplicate:
                                     self.db.insert_user_post(sec_uid=sec_uid, aweme_id=aweme['aweme_id'], data=aweme)
-                            elif mode == "like":
-                                if self.db.get_user_like(sec_uid=sec_uid, aweme_id=aweme['aweme_id']):
+                                
+                                # 如果是增量更新模式且不是置顶视频，检查到已有记录时停止下载
+                                if is_duplicate:
                                     if increase and aweme['is_top'] == 0:
                                         self.console.print("[green]✅ 增量更新完成[/]")
                                         return awemeList
+                                    else:
+                                        # 不在增量模式下也提示跳过（但继续下载）
+                                        self.console.print(f"[yellow]⏭️ 跳过已下载视频: {aweme.get('desc', '未知标题')}[/]")
+                                        continue  # 跳过此视频
+                            elif mode == "like":
+                                # 检查数据库中是否已存在
+                                is_duplicate = self.db.get_user_like(sec_uid=sec_uid, aweme_id=aweme['aweme_id'])
+                                
+                                # 如果不存在，则插入
+                                if not is_duplicate:
+                                    self.db.insert_user_like(sec_uid=sec_uid, aweme_id=aweme['aweme_id'], data=aweme)
+                                
+                                # 如果是增量更新模式且不是置顶视频，检查到已有记录时停止下载
+                                if is_duplicate:
+                                    if increase and aweme['is_top'] == 0:
+                                        self.console.print("[green]✅ 增量更新完成[/]")
+                                        return awemeList
+                                    else:
+                                        # 不在增量模式下也提示跳过（但继续下载）
+                                        self.console.print(f"[yellow]⏭️ 跳过已下载视频: {aweme.get('desc', '未知标题')}[/]")
+                                        continue  # 跳过此视频
                             else:
                                 self.console.print("[red]❌ 模式选择错误，仅支持post、like[/]")
                                 return None
@@ -457,15 +479,29 @@ class Douyin(object):
 
                         # 数量限制检查
                         if number > 0 and len(awemeList) >= number:
-                            return awemeList  # 使用return替代break
+                            self.console.print(f"[green]✅ 已达到限制数量: {number}[/]")
+                            break
 
-                        # 增量更新检查
+                        # 去重和增量更新检查
                         if self.database:
-                            if self.db.get_mix(sec_uid=sec_uid, mix_id=mix_id, aweme_id=aweme['aweme_id']):
-                                if increase and aweme['is_top'] == 0:
-                                    return awemeList  # 使用return替代break
-                            else:
-                                self.db.insert_mix(sec_uid=sec_uid, mix_id=mix_id, aweme_id=aweme['aweme_id'], data=aweme)
+                            # 检查数据库中是否已存在
+                            is_duplicate = self.db.get_mix(sec_uid=sec_uid, mix_id=mix_id, aweme_id=aweme["aweme_id"])
+                            
+                            # 如果不存在，则插入
+                            if not is_duplicate:
+                                self.db.insert_mix(sec_uid=sec_uid, mix_id=mix_id, aweme_id=aweme["aweme_id"], data=aweme)
+                            
+                            # 增量更新处理
+                            if is_duplicate:
+                                if increase:
+                                    # 在增量模式下遇到已有记录，表示后续都是旧数据，可以停止获取
+                                    self.console.print("[green]✅ 增量更新完成[/]")
+                                    progress.update(fetch_task, completed=True, description="[green]✅ 增量更新完成")
+                                    break
+                                else:
+                                    # 不在增量模式下，提示跳过
+                                    self.console.print(f"[yellow]⏭️ 跳过已下载视频: {aweme.get('desc', '未知标题')}[/]")
+                                    continue  # 跳过当前视频
 
                         # 转换数据
                         aweme_data = self._convert_aweme_data(aweme)
@@ -553,116 +589,96 @@ class Douyin(object):
         return mixIdNameDict
 
     def getMusicInfo(self, music_id: str, count=35, number=0, increase=False):
-        print('[  提示  ]:正在请求的音乐集合 id = %s\r\n' % music_id)
+        """获取音乐集合信息"""
         if music_id is None:
             return None
-        if number <= 0:
-            numflag = False
-        else:
-            numflag = True
-
+            
         cursor = 0
         awemeList = []
-        increaseflag = False
-        numberis0 = False
+        total_fetched = 0
+        
+        self.console.print(f"[cyan]🎵 正在获取音乐ID: {music_id} 下的作品[/]")
+        self.console.print(f"[cyan]ℹ️ 设置: {'增量更新' if increase else '常规模式'}, {'无限制' if number <= 0 else f'限制{number}个'}[/]")
 
-        print("[  提示  ]:正在获取音乐集合下的所有作品数据请稍后...\r")
-        print("[  提示  ]:会进行多次请求，等待时间较长...\r\n")
-        times = 0
-        while True:
-            times = times + 1
-            print("[  提示  ]:正在对 [音乐集合] 进行第 " + str(times) + " 次请求...\r")
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeRemainingColumn(),
+            console=self.console,
+            transient=True
+        ) as progress:
+            fetch_task = progress.add_task(
+                "[cyan]📥 正在获取音乐作品...",
+                total=None
+            )
 
-            start = time.time()  # 开始时间
             while True:
-                # 接口不稳定, 有时服务器不返回数据, 需要重新获取
                 try:
                     url = self.urls.MUSIC + utils.getXbogus(
                         f'music_id={music_id}&cursor={cursor}&count={count}&device_platform=webapp&aid=6383')
 
                     res = requests.get(url=url, headers=douyin_headers)
                     datadict = json.loads(res.text)
-                    print('[  提示  ]:本次请求返回 ' + str(len(datadict["aweme_list"])) + ' 条数据\r')
-
-                    if datadict is not None and datadict["status_code"] == 0:
+                    
+                    if not datadict or datadict.get("status_code") != 0:
+                        self.console.print("[red]❌ 获取数据失败[/]")
                         break
+                        
+                    batch_size = len(datadict.get("aweme_list", []))
+                    if batch_size == 0:
+                        self.console.print("[yellow]⚠️ 本次请求未返回数据[/]")
+                        break
+                        
+                    progress.update(fetch_task, description=f"[cyan]📥 已获取 {total_fetched} 个作品，本批次 {batch_size} 个[/]")
+                    
+                    for aweme in datadict["aweme_list"]:
+                        total_fetched += 1
+                        
+                        # 数量限制检查
+                        if number > 0 and len(awemeList) >= number:
+                            self.console.print(f"[green]✅ 已达到限制数量: {number}[/]")
+                            break
+                            
+                        # 去重和增量更新检查
+                        if self.database:
+                            # 检查数据库中是否已存在
+                            is_duplicate = self.db.get_music(music_id=music_id, aweme_id=aweme["aweme_id"])
+                            
+                            # 如果不存在，则插入
+                            if not is_duplicate:
+                                self.db.insert_music(music_id=music_id, aweme_id=aweme["aweme_id"], data=aweme)
+                            
+                            # 增量更新处理
+                            if is_duplicate:
+                                if increase and aweme.get('is_top', 0) == 0:
+                                    # 在增量模式下遇到已有记录，表示后续都是旧数据，可以停止获取
+                                    self.console.print("[green]✅ 增量更新完成[/]")
+                                    progress.update(fetch_task, completed=True, description="[green]✅ 增量更新完成")
+                                    break
+                                else:
+                                    # 不在增量模式下，提示跳过
+                                    self.console.print(f"[yellow]⏭️ 跳过已下载视频: {aweme.get('desc', '未知标题')}[/]")
+                                    continue  # 跳过当前视频
+                                    
+                        # 转换数据格式
+                        aweme_data = self._convert_aweme_data(aweme)
+                        if aweme_data:
+                            awemeList.append(aweme_data)
+                    
+                    # 检查是否还有更多数据
+                    if datadict.get("has_more") == 0:
+                        self.console.print(f"[green]✅ 已获取音乐下全部作品: {total_fetched}个[/]")
+                        break
+                    
+                    # 更新游标
+                    cursor = datadict["cursor"]
+                    
                 except Exception as e:
-                    end = time.time()  # 结束时间
-                    if end - start > self.timeout:
-                        print("[  提示  ]:重复请求该接口" + str(self.timeout) + "s, 仍然未获取到数据")
-                        return awemeList
-
-
-            for aweme in datadict["aweme_list"]:
-                if self.database:
-                    # 退出条件
-                    if increase is False and numflag and numberis0:
-                        break
-                    if increase and numflag and numberis0 and increaseflag:
-                        break
-                    # 增量更新, 找到非置顶的最新的作品发布时间
-                    if self.db.get_music(music_id=music_id, aweme_id=aweme['aweme_id']) is not None:
-                        if increase and aweme['is_top'] == 0:
-                            increaseflag = True
-                    else:
-                        self.db.insert_music(music_id=music_id, aweme_id=aweme['aweme_id'], data=aweme)
-
-                    # 退出条件
-                    if increase and numflag is False and increaseflag:
-                        break
-                    if increase and numflag and numberis0 and increaseflag:
-                        break
-                else:
-                    if numflag and numberis0:
-                        break
-
-                if numflag:
-                    number -= 1
-                    if number == 0:
-                        numberis0 = True
-
-                # 清空self.awemeDict
-                self.result.clearDict(self.result.awemeDict)
-
-                # 默认为视频
-                awemeType = 0
-                try:
-                    if aweme["images"] is not None:
-                        awemeType = 1
-                except Exception as e:
-                    print("[  警告  ]:接口中未找到 images\r")
-
-                # 转换成我们自己的格式
-                self.result.dataConvert(awemeType, self.result.awemeDict, aweme)
-
-                if self.result.awemeDict is not None and self.result.awemeDict != {}:
-                    awemeList.append(copy.deepcopy(self.result.awemeDict))
-
-            if self.database:
-                if increase and numflag is False and increaseflag:
-                    print("\r\n[  提示  ]: [音乐集合] 下作品增量更新数据获取完成...\r\n")
+                    self.console.print(f"[red]❌ 获取音乐作品出错: {str(e)}[/]")
                     break
-                elif increase is False and numflag and numberis0:
-                    print("\r\n[  提示  ]: [音乐集合] 下指定数量作品数据获取完成...\r\n")
-                    break
-                elif increase and numflag and numberis0 and increaseflag:
-                    print("\r\n[  提示  ]: [音乐集合] 下指定数量作品数据获取完成, 增量更新数据获取完成...\r\n")
-                    break
-            else:
-                if numflag and numberis0:
-                    print("\r\n[  提示  ]: [音乐集合] 下指定数量作品数据获取完成...\r\n")
-                    break
-
-            # 更新 cursor
-            cursor = datadict["cursor"]
-
-            # 退出条件
-            if datadict["has_more"] == 0 or datadict["has_more"] == False:
-                print("\r\n[  提示  ]:[音乐集合] 下所有作品数据获取完成...\r\n")
-                break
-            else:
-                print("\r\n[  提示  ]:[音乐集合] 第 " + str(times) + " 次请求成功...\r\n")
-
+                    
         return awemeList
 
     def getUserDetailInfo(self, sec_uid):
